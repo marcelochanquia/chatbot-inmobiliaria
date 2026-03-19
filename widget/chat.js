@@ -102,7 +102,8 @@
     div.className = "msg bot";
     div.innerHTML = renderMarkdown(texto);
     messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
+    // Scroll hasta donde empieza el mensaje, no hasta el final
+    div.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function mostrarCarrusel(cards) {
@@ -203,42 +204,6 @@
     agregarMensajeBot(
       "¡Hola! Soy tu asistente en Inmobiliaria Guillermo Cortes. ¿En qué puedo ayudarte?",
     );
-    const btns = document.createElement("div");
-    btns.className = "quick-btns";
-    btns.innerHTML = `
-      <button class="quick-btn" data-op="venta">Ver propiedades en venta</button>
-      <button class="quick-btn" data-op="alquiler">Ver propiedades en alquiler</button>
-      <button class="quick-btn" data-op="">Contactar asesor</button>
-    `;
-    btns.querySelectorAll(".quick-btn").forEach((b) => {
-      b.addEventListener("click", async () => {
-        const op = b.dataset.op;
-        const texto = b.textContent;
-
-        const userMsg = document.createElement("div");
-        userMsg.className = "msg user";
-        userMsg.textContent = texto;
-        messages.appendChild(userMsg);
-
-        if (op) {
-          const typing = document.createElement("div");
-          typing.className = "msg bot typing";
-          typing.id = "typing";
-          typing.textContent = "Buscando propiedades...";
-          messages.appendChild(typing);
-          messages.scrollTop = messages.scrollHeight;
-
-          const cards = await cargarPropiedades(op, "");
-          document.getElementById("typing").remove();
-          agregarMensajeBot(`Encontré ${cards.length} propiedades en ${op}:`);
-          mostrarCarrusel(cards);
-        } else {
-          enviarMensaje(texto);
-        }
-      });
-    });
-    messages.appendChild(btns);
-    messages.scrollTop = messages.scrollHeight;
   }
 
   async function enviarMensaje(textoDirecto) {
@@ -267,9 +232,6 @@
       const data = await res.json();
       document.getElementById("typing").remove();
       agregarMensajeBot(data.respuesta);
-      if (data.cards && data.cards.length > 0) {
-        mostrarCarrusel(data.cards);
-      }
     } catch (e) {
       document.getElementById("typing").remove();
       agregarMensajeBot("Error al conectar con el servidor.");

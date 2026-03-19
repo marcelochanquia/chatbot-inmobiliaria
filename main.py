@@ -16,18 +16,36 @@ URL_WEB = "https://guillermocortes.com.ar"
 estado = {"llm": None, "retriever": None, "prompt": None, "historial": {}}
 
 
+def cargar_instrucciones():
+    import os
+
+    if os.path.exists("gemini.md"):
+        with open("gemini.md", "r", encoding="utf-8") as f:
+            return f.read()
+    return "Eres un asistente inmobiliario experto."
+
+
 def reindexar():
     print("Iniciando re-indexado automático...")
     pages = scrape_website(URL_WEB, max_pages=200)
     crear_indice(pages)
-    estado["llm"], estado["retriever"], estado["prompt"] = crear_cadena_rag()
+    instrucciones = cargar_instrucciones()
+    estado["llm"], estado["retriever"], estado["prompt"] = crear_cadena_rag(
+        instrucciones
+    )
     print("✓ Re-indexado completado")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Cargando chatbot...")
-    estado["llm"], estado["retriever"], estado["prompt"] = crear_cadena_rag()
+    # 1. Leemos el archivo gemini.md
+    instrucciones = cargar_instrucciones()
+    # 2. Pasamos esas instrucciones a tu función de RAG
+    # Nota: Tendrás que modificar crear_cadena_rag en rag.py para que acepte este string
+    estado["llm"], estado["retriever"], estado["prompt"] = crear_cadena_rag(
+        instrucciones
+    )
     scheduler = BackgroundScheduler()
     scheduler.add_job(reindexar, "interval", hours=24)
     scheduler.start()
@@ -166,4 +184,7 @@ async def health():
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+    import os
+
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
