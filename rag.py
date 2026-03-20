@@ -23,7 +23,7 @@ def crear_cadena_rag(system_instructions: str):
         search_kwargs={"k": 6, "filter": {"url": {"$contains": "/inmueble-"}}},
     )
 
-    # llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.3)
+    # llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.1)
     llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.3)
     # Cargamos el archivo de contexto
     system_instructions = cargar_instrucciones()
