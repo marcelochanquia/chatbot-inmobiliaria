@@ -1,5 +1,5 @@
 (function () {
-  const API_URL = "http://localhost:8000/chat";
+  const API_URL = "https://chatbot-inmobiliaria-1.onrender.com/chat";
   const PROPS_URL = "http://localhost:8000/propiedades";
   const SESSION_ID = "session_" + Math.random().toString(36).substr(2, 9);
 
