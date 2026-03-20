@@ -7,7 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel
 
-from indexer import crear_indice
+# Importamos cargar_indice para verificar el estado inicial
+from indexer import cargar_indice, crear_indice
 from rag import consultar, crear_cadena_rag
 from scraper import scrape_website
 
@@ -30,6 +31,7 @@ def reindexar():
     pages = scrape_website(URL_WEB, max_pages=200)
     crear_indice(pages)
     instrucciones = cargar_instrucciones()
+    # Actualizamos el estado con el nuevo índice
     estado["llm"], estado["retriever"], estado["prompt"] = crear_cadena_rag(
         instrucciones
     )
@@ -39,17 +41,28 @@ def reindexar():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Cargando chatbot...")
-    # 1. Leemos el archivo gemini.md
-    instrucciones = cargar_instrucciones()
-    # 2. Pasamos esas instrucciones a tu función de RAG
-    # Nota: Tendrás que modificar crear_cadena_rag en rag.py para que acepte este string
-    estado["llm"], estado["retriever"], estado["prompt"] = crear_cadena_rag(
-        instrucciones
-    )
+
+    # 1. Intentamos cargar el índice existente
+    indice = cargar_indice()
+
+    # 2. Si no existe (es None), disparamos el re-indexado inicial
+    if indice is None:
+        print("🚀 Primer arranque detectado: Generando índice FAISS por primera vez...")
+        reindexar()
+    else:
+        # Si existe, cargamos la cadena RAG normalmente
+        instrucciones = cargar_instrucciones()
+        estado["llm"], estado["retriever"], estado["prompt"] = crear_cadena_rag(
+            instrucciones
+        )
+        print("✓ Estado cargado desde índice existente")
+
+    # 3. Iniciamos el scheduler para las actualizaciones cada 24hs [cite: 51]
     scheduler = BackgroundScheduler()
     scheduler.add_job(reindexar, "interval", hours=24)
     scheduler.start()
-    print("✓ Scheduler iniciado, re-indexado cada 24hs")
+    print("✓ Scheduler activo (re-indexado cada 24hs)")
+
     yield
     scheduler.shutdown()
 

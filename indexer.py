@@ -1,5 +1,6 @@
 import os
 import time
+from typing import Optional
 
 from dotenv import load_dotenv
 from langchain_community.vectorstores import FAISS
@@ -60,8 +61,16 @@ def crear_indice(pages: list[dict]) -> FAISS:
     return vector_store
 
 
-def cargar_indice() -> FAISS:
+def cargar_indice() -> Optional[FAISS]:
+    # Usamos el 'os' que ya está importado arriba
     embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
+
+    # Verificamos si la carpeta existe
+    if not os.path.exists("vector_store"):
+        print("⚠️ El índice no existe localmente. Se requiere re-indexar.")
+        return None
+
+    # Cargamos el índice [cite: 44]
     vector_store = FAISS.load_local(
         "vector_store", embeddings, allow_dangerous_deserialization=True
     )
