@@ -24,7 +24,7 @@ def crear_cadena_rag(system_instructions: str):
     )
 
     # llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.1)
-    llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.1)
+    llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
     # Cargamos el archivo de contexto
     system_instructions = cargar_instrucciones()
 

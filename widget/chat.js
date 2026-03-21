@@ -1,5 +1,6 @@
 (function () {
   const API_URL = "https://chatbot-inmobiliaria-1.onrender.com/chat";
+  //const API_URL = "http://localhost:8000/chat";
   const PROPS_URL = "http://localhost:8000/propiedades";
   const SESSION_ID = "session_" + Math.random().toString(36).substr(2, 9);
 
@@ -14,18 +15,18 @@
       display: none; /* Oculto por defecto ya que inicia abierto */
     }
     #chat-btn:hover { transform: scale(1.1); }
-    
+
     #chat-box {
       display: none; /* Se controla con la clase .open */
-      position: fixed; 
+      position: fixed;
       bottom: 90px; right: 24px;
-      width: 370px; height: 560px; 
+      width: 370px; height: 560px;
       background: white;
       border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.18);
       flex-direction: column; z-index: 9999; overflow: hidden;
       transition: all 0.3s ease;
     }
-    
+
     #chat-box.open { display: flex; }
 
     /* --- CAMBIO PARA MÓVILES (RESPONSIVE) --- */
@@ -45,10 +46,10 @@
       font-weight: bold; font-size: 15px; font-family: sans-serif;
       display: flex; align-items: center; justify-content: space-between;
     }
-    
+
     /* Botón para cerrar en móvil */
     #chat-close {
-        background: transparent; border: none; color: white; 
+        background: transparent; border: none; color: white;
         font-size: 20px; cursor: pointer; display: none;
     }
     @media (max-width: 600px) { #chat-close { display: block; } }
@@ -62,7 +63,7 @@
     .msg.bot { background: #f1f3f4; color: #333; align-self: flex-start; }
     .msg.user { background: #b30000; color: white; align-self: flex-end; }
     .msg.typing { color: #999; font-style: italic; }
-    
+
     #chat-input-area {
       display: flex; padding: 12px; border-top: 1px solid #eee; gap: 8px;
       background: white;
@@ -76,6 +77,17 @@
       background: #b30000; color: white; border: none;
       padding: 10px 16px; border-radius: 8px; cursor: pointer;
     }
+    #chat-mic {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 22px;
+      padding: 0 5px;
+      display: flex;
+      align-items: center;
+      transition: transform 0.2s;
+    }
+    #chat-mic:active { transform: scale(0.9); }
   `;
   document.head.appendChild(style);
 
@@ -84,12 +96,13 @@
     `
     <button id="chat-btn" title="Chat con nosotros">💬</button>
     <div id="chat-box" class="open"> <div id="chat-header">
-        <span>🏠 Asistente Inmobiliario</span>
+        <span>🏠 Asistente Inmobiliaria</span>
         <button id="chat-close">✕</button>
       </div>
       <div id="chat-messages"></div>
       <div id="chat-input-area">
         <input id="chat-input" type="text" placeholder="Escribe tu consulta..." />
+        <button id="chat-mic" style="background:none; border:none; cursor:pointer; font-size:24px;" title="Dictar por voz">🎤</button>
         <button id="chat-send">Enviar</button>
       </div>
     </div>
@@ -102,12 +115,13 @@
   const messages = document.getElementById("chat-messages");
   const input = document.getElementById("chat-input");
   const send = document.getElementById("chat-send");
+  const micBtn = document.getElementById("chat-mic");
 
   // --- LÓGICA DE APERTURA AUTOMÁTICA ---
   if (box.classList.contains("open")) {
     // Pequeño delay para que el usuario vea la animación o el asistente cargue
     setTimeout(() => {
-        if (messages.children.length === 0) mostrarBienvenida();
+      if (messages.children.length === 0) mostrarBienvenida();
     }, 500);
   }
 
@@ -154,25 +168,49 @@
       });
       const data = await res.json();
       const t = document.getElementById("typing");
-      if(t) t.remove();
+      if (t) t.remove();
       agregarMensajeBot(data.respuesta);
     } catch (e) {
       const t = document.getElementById("typing");
-      if(t) t.remove();
+      if (t) t.remove();
       agregarMensajeBot("Error al conectar con el servidor.");
     }
   }
 
-  // Eventos de control
-  btn.addEventListener("click", () => {
-    box.classList.add("open");
-    btn.style.display = "none";
+  // 1. Configuración del motor de voz (antes de los eventos)
+  const recognition = new (
+    window.SpeechRecognition || window.webkitSpeechRecognition
+  )();
+  recognition.lang = "es-ES";
+  recognition.interimResults = false;
+
+  // 2. Eventos de control (donde ya tienes tus otros .addEventListener)
+  micBtn.addEventListener("click", () => {
+    try {
+      recognition.start();
+      micBtn.textContent = "🛑"; // Cambia el icono para indicar que está escuchando
+      micBtn.style.color = "#b30000"; // Cambia el color para dar feedback visual
+    } catch (e) {
+      console.error("Error al iniciar reconocimiento:", e);
+    }
   });
 
+  // 3. Qué hacer cuando el navegador detecta la voz
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    input.value = transcript; // Coloca el texto en el input sin enviarlo
+  };
+
+  // Asegurarnos de que el botón vuelva a la normalidad al terminar
+  recognition.onend = () => {
+    micBtn.textContent = "🎤";
+    micBtn.style.color = "black";
+  };
+
   closeBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      box.classList.remove("open");
-      btn.style.display = "block";
+    e.stopPropagation();
+    box.classList.remove("open");
+    btn.style.display = "block";
   });
 
   send.addEventListener("click", () => enviarMensaje());
@@ -181,6 +219,8 @@
   });
 
   function mostrarBienvenida() {
-    agregarMensajeBot("¡Hola! Soy tu asistente en Inmobiliaria Guillermo Cortes. ¿En qué puedo ayudarte?");
+    agregarMensajeBot(
+      "¡Hola! Soy tu asistente en Inmobiliaria Guillermo Cortes. ¿En qué puedo ayudarte?",
+    );
   }
 })();
