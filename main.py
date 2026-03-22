@@ -1,4 +1,9 @@
+import os
+import re
+import smtplib
 from contextlib import asynccontextmanager
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 import uvicorn
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -12,7 +17,63 @@ from indexer import cargar_indice, crear_indice
 from rag import consultar, crear_cadena_rag
 from scraper import scrape_website
 
+
+def extraer_contacto(mensaje: str) -> dict:
+    """Detecta email y teléfono en el mensaje del usuario."""
+    contacto = {}
+    email = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", mensaje)
+    telefono = re.search(r"[\+\d][\d\s\-]{7,15}", mensaje)
+    if email:
+        contacto["email"] = email.group()
+    if telefono:
+        contacto["telefono"] = telefono.group().strip()
+    return contacto
+
+
+def enviar_email_contacto(contacto: dict, historial_texto: str):
+    gmail_user = os.getenv("GMAIL_USER")
+    gmail_pass = os.getenv("GMAIL_APP_PASSWORD")
+
+    msg = MIMEMultipart("alternative")
+    msg["From"] = gmail_user
+    msg["To"] = gmail_user
+    msg["Subject"] = "Nuevo contacto desde el chatbot inmobiliario"
+
+    cuerpo_html = f"""
+    <html><body style="font-family:Arial,sans-serif;color:#333;">
+    <h2 style="color:#b30000;border-bottom:2px solid #b30000;padding-bottom:8px;">
+      Nuevo contacto desde el chatbot
+    </h2>
+    <table style="border-collapse:collapse;margin-bottom:20px;">
+      <tr>
+        <td style="padding:6px 12px;font-weight:bold;">Email:</td>
+        <td style="padding:6px 12px;">{contacto.get("email", "No proporcionado")}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 12px;font-weight:bold;">Teléfono:</td>
+        <td style="padding:6px 12px;">{contacto.get("telefono", "No proporcionado")}</td>
+      </tr>
+    </table>
+    <h3 style="color:#b30000;">Conversación:</h3>
+    <div style="background:#f5f5f5;padding:16px;border-radius:8px;white-space:pre-wrap;font-size:13px;line-height:1.6;">
+{historial_texto}
+    </div>
+    </body></html>
+    """
+
+    msg.attach(MIMEText(cuerpo_html, "html", "utf-8"))
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(gmail_user, gmail_pass)
+            server.send_message(msg)
+            print("✓ Email de contacto enviado")
+    except Exception as e:
+        print(f"✗ Error enviando email: {e}")
+
+
 URL_WEB = "https://guillermocortes.com.ar"
+
 
 estado = {"llm": None, "retriever": None, "prompt": None, "historial": {}}
 
@@ -97,6 +158,19 @@ async def chat(pregunta: Pregunta):
     historial.append(HumanMessage(content=pregunta.mensaje))
     historial.append(AIMessage(content=resultado["respuesta"]))
 
+    # Detectar datos de contacto en el mensaje del usuario
+    contacto = extraer_contacto(pregunta.mensaje)
+    print(f"Mensaje recibido: {pregunta.mensaje}")
+    print(f"Contacto detectado: {contacto}")
+    if contacto:
+        historial_texto = "\n".join(
+            [
+                f"{'Usuario' if isinstance(m, HumanMessage) else 'Bot'}: {m.content}"
+                for m in historial[-10:]
+            ]
+        )
+        print(f"Historial texto:\n{historial_texto}")
+        enviar_email_contacto(contacto, historial_texto)
     # Solo mostrar cards si la pregunta es sobre propiedades
     palabras_propiedad = [
         "propiedad",

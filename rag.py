@@ -54,7 +54,7 @@ def consultar(llm, retriever, prompt, pregunta: str, historial: list) -> dict:
     ]
 
     # Usar los primeros 6 inmuebles como contexto
-    docs = docs_inmuebles[:6] if docs_inmuebles else todos_docs[:6]
+    docs = docs_inmuebles[:3] if docs_inmuebles else todos_docs[:3]
 
     contexto = "\n\n".join([doc.page_content for doc in docs])
     fuentes = [doc.metadata["url"] for doc in docs]
