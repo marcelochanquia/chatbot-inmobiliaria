@@ -64,7 +64,9 @@ def enviar_email_contacto(contacto: dict, historial_texto: str):
     msg.attach(MIMEText(cuerpo_html, "html", "utf-8"))
 
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.ehlo()
+            server.starttls()
             server.login(gmail_user, gmail_pass)
             server.send_message(msg)
             print("✓ Email de contacto enviado")
