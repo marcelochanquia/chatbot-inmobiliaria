@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel
+from sendgrid.helpers.mail import Content, Email, Mail, To
 
 # Importamos cargar_indice para verificar el estado inicial
 from indexer import cargar_indice, crear_indice
@@ -31,13 +32,11 @@ def extraer_contacto(mensaje: str) -> dict:
 
 
 def enviar_email_contacto(contacto: dict, historial_texto: str):
-    gmail_user = os.getenv("GMAIL_USER")
-    gmail_pass = os.getenv("GMAIL_APP_PASSWORD")
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail
 
-    msg = MIMEMultipart("alternative")
-    msg["From"] = gmail_user
-    msg["To"] = gmail_user
-    msg["Subject"] = "Nuevo contacto desde el chatbot inmobiliario"
+    gmail_user = os.getenv("GMAIL_USER")
+    sendgrid_key = os.getenv("SENDGRID_API_KEY")
 
     cuerpo_html = f"""
     <html><body style="font-family:Arial,sans-serif;color:#333;">
@@ -61,15 +60,17 @@ def enviar_email_contacto(contacto: dict, historial_texto: str):
     </body></html>
     """
 
-    msg.attach(MIMEText(cuerpo_html, "html", "utf-8"))
+    message = Mail(
+        from_email=gmail_user,
+        to_emails=gmail_user,
+        subject="Nuevo contacto - Chatbot Inmobiliaria",
+        html_content=cuerpo_html,
+    )
 
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.ehlo()
-            server.starttls()
-            server.login(gmail_user, gmail_pass)
-            server.send_message(msg)
-            print("✓ Email de contacto enviado")
+        sg = SendGridAPIClient(sendgrid_key)
+        sg.send(message)
+        print("✓ Email enviado via SendGrid")
     except Exception as e:
         print(f"✗ Error enviando email: {e}")
 
