@@ -266,7 +266,10 @@ async def propiedades(tipo: str = "", operacion: str = ""):
         )
 
     return {"cards": cards, "total": len(cards)}
-
+    
+@app.get("/ping")
+async def ping():
+    return {"ping": "ok"}
 
 @app.get("/health")
 async def health():
